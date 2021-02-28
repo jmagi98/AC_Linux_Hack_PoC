@@ -30,8 +30,6 @@ long ProcessManager::FindBaseAddr(const char *module)
     for(int i = 0; read(fd, FileBuffer + i, 1) > 0; i++);
 
     close(fd);
-
-    // if we have a good module, go to that area of memory. Otherwise, go to default area
     if (module != NULL)
     {
         if ((ptr = strstr(FileBuffer, module)) == NULL)
@@ -95,20 +93,35 @@ bool ProcessManager::ReadProcessMemory(unsigned long address, void *buffer, uint
 }
 
 
+unsigned long module_addr(pid_t pid, char *name) {
+  char cmd[200];
+  sprintf(cmd, "cat /proc/%d/maps | grep %s -m1 | cut -d '-' -f1", pid, name);
+  FILE *f = popen(cmd, "r");
+  char line[20];
+  fgets(line, 20, f);
+  pclose(f);
+  return strtoul(line, NULL, 16);
+}
+
 
 bool ProcessManager::GodMode(long staticOffset, std::vector<unsigned int> healthOffset)
 {
 
-    //TODO: For some reason, TargetBaseAddress returns the wrong address. For now, it has been hardcoded
-    unsigned long currentAddr = 0x5624d2233ba0;//staticOffset;
+    unsigned long currentAddr = module_addr((pid_t) ProcessID, "ac_client") + 0x19ef40;
     long buf;
+    ReadProcessMemory(currentAddr, &buf, sizeof(buf));
+    currentAddr = buf;
+    printf("%p\n", (void*)buf);
+
 
     for(int i = 0; i < healthOffset.size() - 1; i++)
     {
         printf("Iterating\n");
         unsigned long nextAddr = currentAddr + healthOffset[i];
+        printf("%p\n", (void*)nextAddr);
         ReadProcessMemory(nextAddr, &buf, sizeof(buf));
         currentAddr = buf;
+        printf("%p\n", (void*)buf);
     }
 
     long healthAddr = currentAddr + healthOffset.back();
@@ -126,7 +139,6 @@ bool ProcessManager::GodMode(long staticOffset, std::vector<unsigned int> health
 
     return true;
 }
-
 
 
 ProcessManager::ProcessManager(const char *szProcessName, const char *module) 
