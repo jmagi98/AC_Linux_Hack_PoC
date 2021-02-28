@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
+#include <vector>
+#include <iostream>
 
 
 typedef unsigned int unit;
@@ -29,7 +31,8 @@ public:
     ProcessManager(const char *szProcessName, const char *module=NULL);
     ~ProcessManager();
 
-    bool SignaturePayload(const char *signature, char *payload, const int siglen, const int paylen, const int bsize, uint sigoffset=0);
+    bool GodMode(long staticOffset, std::vector<unsigned int> healthOffset);
+
     
     bool WriteProcessMemory(unsigned long address, void *buffer, uint size);
     bool ReadProcessMemory(unsigned long address, void *buffer, uint size); 

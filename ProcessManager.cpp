@@ -1,7 +1,9 @@
+#include <sys/uio.h>
 #include "ProcessManager.h"
 
 
-long ProcessManager::FindBaseAddr(const char *module) {
+long ProcessManager::FindBaseAddr(const char *module) 
+{
     int fd = 0;
     char FileLocation[1024];
     char BaseAddr[1024];
@@ -9,13 +11,15 @@ long ProcessManager::FindBaseAddr(const char *module) {
 
 
     sprintf(FileLocation, "/proc/%lu/maps", ProcessID);
-    if((fd = open(FileLocation, O_RDONLY)) < 0) {
+    if((fd = open(FileLocation, O_RDONLY)) < 0) 
+    {
         fprintf(stderr, "Failed to open file");
         exit(EXIT_FAILURE);
     }
 
     char *FileBuffer = (char *)malloc(100000);
-    if(FileBuffer == NULL) {
+    if(FileBuffer == NULL) 
+    {
         fprintf(stderr, "Failed to open file");
         exit(EXIT_FAILURE);
     }
@@ -30,13 +34,13 @@ long ProcessManager::FindBaseAddr(const char *module) {
     // if we have a good module, go to that area of memory. Otherwise, go to default area
     if (module != NULL)
     {
-        printf("MODULE != NULL");
         if ((ptr = strstr(FileBuffer, module)) == NULL)
         {
             fprintf(stderr, "(ERROR) ProcessManager: Failed to locate base memory address; NON\n");
             return false;
         }
     }
+
     else
     {
         if ((ptr = strstr(FileBuffer, "r-xp")) == NULL)
@@ -46,13 +50,15 @@ long ProcessManager::FindBaseAddr(const char *module) {
         }
     }
 
-    while(*ptr != '\n' && ptr >= FileBuffer) {
+    while(*ptr != '\n' && ptr >= FileBuffer) 
+    {
         ptr--; 
     }
 
     ptr++;
 
-    for(int i = 0; *ptr != '-'; i++) {
+    for(int i = 0; *ptr != '-'; i++) 
+    {
         BaseAddr[i] = *ptr;
         ptr++;
     
@@ -63,9 +69,11 @@ long ProcessManager::FindBaseAddr(const char *module) {
 
 }
 
-bool ProcessManager::WriteProcessMemory(unsigned long address, void *buffer, uint size) {
+bool ProcessManager::WriteProcessMemory(unsigned long address, void *buffer, uint size) 
+{
     lseek(ProcessHandle, address, SEEK_SET);
-    if(!write(ProcessHandle, buffer, size)) {
+    if(!write(ProcessHandle, buffer, size)) 
+    {
         fprintf(stderr, "Failed to write memory of target!\n");
         return false;
     }
@@ -73,9 +81,11 @@ bool ProcessManager::WriteProcessMemory(unsigned long address, void *buffer, uin
     lseek(ProcessHandle, 0, SEEK_SET);
     return true;
 }
-bool ProcessManager::ReadProcessMemory(unsigned long address, void *buffer, uint size) {
+bool ProcessManager::ReadProcessMemory(unsigned long address, void *buffer, uint size) 
+{
     lseek(ProcessHandle, address, SEEK_SET);
-    if(!read(ProcessHandle, buffer, size)) {
+    if(!read(ProcessHandle, buffer, size)) 
+    {
         fprintf(stderr, "Failed to read memory of target!\n");
         return false;
     }
@@ -85,36 +95,42 @@ bool ProcessManager::ReadProcessMemory(unsigned long address, void *buffer, uint
 }
 
 
-bool ProcessManager::SignaturePayload(const char *signature, char *payload, const int siglen, const int paylen, const int bsize, uint sigoffset) {
-    char *buf = (char *)malloc(siglen *bsize);
-    if(buf == NULL) {
-        fprintf(stderr, "Failed to allocate memory");
-        exit(EXIT_FAILURE);
+
+bool ProcessManager::GodMode(long staticOffset, std::vector<unsigned int> healthOffset)
+{
+
+    //TODO: For some reason, TargetBaseAddress returns the wrong address. For now, it has been hardcoded
+    unsigned long currentAddr = 0x5624d2233ba0;//staticOffset;
+    long buf;
+
+    for(int i = 0; i < healthOffset.size() - 1; i++)
+    {
+        printf("Iterating\n");
+        unsigned long nextAddr = currentAddr + healthOffset[i];
+        ReadProcessMemory(nextAddr, &buf, sizeof(buf));
+        currentAddr = buf;
     }
 
+    long healthAddr = currentAddr + healthOffset.back();
+    long totalHealth = 9999;
+    printf("WRITING HEALTH AT ADDR: ");
+    printf("%p\n", (void*)healthAddr);
 
-    for(int i = 0; ReadProcessMemory(TargetBaseAddr +i, buf, siglen *bsize); i += (siglen * bsize)) {
-        for(int j = 0; j < ((siglen * bsize) - (siglen  - 1)); j++) {
-            if(memcpy(buf + j, signature, siglen) == 0) {
 
-                if(payload != NULL) {
-                    fprintf(stderr, "Signature Found!");
-                    WriteProcessMemory(TargetBaseAddr + i + j + sigoffset, payload, paylen);
-                }
-
-                goto END;
-            }
-        }
+    bool updateHealth = WriteProcessMemory(healthAddr, &totalHealth, sizeof(totalHealth));
+    if(!updateHealth) 
+    {
+        fprintf(stderr, "Health was unable to be updated");
+        return false;
     }
-END:
-    free(buf);
+
     return true;
-
 }
 
 
 
-ProcessManager::ProcessManager(const char *szProcessName, const char *module) {
+ProcessManager::ProcessManager(const char *szProcessName, const char *module) 
+{
     if(strlen(szProcessName) > 1023) {
         fprintf(stderr, "Process name is too long");
         exit(EXIT_FAILURE);
@@ -125,13 +141,16 @@ ProcessManager::ProcessManager(const char *szProcessName, const char *module) {
     struct dirent *DirectoryObject = NULL;
     DIR *DirectoryHandle = NULL;
 
-    if((DirectoryHandle = opendir("/proc/")) == NULL) {
-        fprintf(stderr, "Failed to attache to /proc/");
+    if((DirectoryHandle = opendir("/proc/")) == NULL) 
+    {
+        fprintf(stderr, "Failed to attach to /proc/");
         exit(EXIT_FAILURE);
     }
 
-    while((DirectoryObject = readdir(DirectoryHandle)) != NULL) {
-        if(atoi(DirectoryObject->d_name) != 0) {
+    while((DirectoryObject = readdir(DirectoryHandle)) != NULL) 
+    {
+        if(atoi(DirectoryObject->d_name) != 0) 
+        {
             char FilePath[1024];
             char *FileBuffer = NULL;
             __off_t FileLen = 128;
@@ -139,20 +158,23 @@ ProcessManager::ProcessManager(const char *szProcessName, const char *module) {
 
             sprintf(FilePath, "/proc/%s/status", DirectoryObject->d_name);
 
-            if((fd = open(FilePath, O_RDONLY)) < 0) {
+            if((fd = open(FilePath, O_RDONLY)) < 0) 
+            {
                 fprintf(stderr, "Failed to open file path");
                 exit(EXIT_FAILURE); 
 
             }
 
-            if((FileBuffer = (char *)malloc(FileLen)) == NULL) {
+            if((FileBuffer = (char *)malloc(FileLen)) == NULL) 
+            {
                 fprintf(stderr, "Failed to malloc");
                 exit(EXIT_FAILURE); 
             }
 
             memset(FileBuffer, 0, FileLen);
 
-            if(read(fd, FileBuffer, FileLen - 1) < 0) {
+            if(read(fd, FileBuffer, FileLen - 1) < 0) 
+            {
                 fprintf(stderr, "Failed to read file contents");
                 exit(EXIT_FAILURE); 
 
@@ -161,7 +183,8 @@ ProcessManager::ProcessManager(const char *szProcessName, const char *module) {
             close(fd);
 
 
-            if(strstr(FileBuffer, ProcessNameString) != NULL) {
+            if(strstr(FileBuffer, ProcessNameString) != NULL) 
+            {
                 printf("Proc Found\n");
 
                 ProcessID = atoi(DirectoryObject->d_name);
@@ -172,7 +195,8 @@ ProcessManager::ProcessManager(const char *szProcessName, const char *module) {
                 //TODO: Get Program Base Addr
                 TargetBaseAddr = FindBaseAddr(module);
 
-                if((ProcessHandle = open(TargetMemoryLocation, O_RDWR)) < 0) {
+                if((ProcessHandle = open(TargetMemoryLocation, O_RDWR)) < 0) 
+                {
                     fprintf(stderr, "Failed to open target memory");
                     exit(EXIT_FAILURE); 
                 }
@@ -192,7 +216,8 @@ ProcessManager::ProcessManager(const char *szProcessName, const char *module) {
 }
 
 
-ProcessManager::~ProcessManager() {
+ProcessManager::~ProcessManager() 
+{
     if(ProcessHandle != 0) {
         close(ProcessHandle);
     }
