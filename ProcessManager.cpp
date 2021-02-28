@@ -1,7 +1,7 @@
 #include <sys/uio.h>
 #include "ProcessManager.h"
 
-
+// This is somewhat overly complex and I don't love the way it is done. There is a command line version that leverages grep below
 long ProcessManager::FindBaseAddr(const char *module) 
 {
     int fd = 0;
@@ -9,7 +9,7 @@ long ProcessManager::FindBaseAddr(const char *module)
     char BaseAddr[1024];
     char *ptr = NULL;
 
-
+    // grab maps file by process id 
     sprintf(FileLocation, "/proc/%lu/maps", ProcessID);
     if((fd = open(FileLocation, O_RDONLY)) < 0) 
     {
@@ -26,10 +26,13 @@ long ProcessManager::FindBaseAddr(const char *module)
 
     memset(FileBuffer,0,100000);
     memset(BaseAddr, 0, 1024);
-
+    
+    // read maps file
     for(int i = 0; read(fd, FileBuffer + i, 1) > 0; i++);
 
     close(fd);
+    
+    // check to see if the user passed in a module. If no, default to r-xp
     if (module != NULL)
     {
         if ((ptr = strstr(FileBuffer, module)) == NULL)
@@ -47,6 +50,9 @@ long ProcessManager::FindBaseAddr(const char *module)
             return false;
         }
     }
+
+
+    // grab hex address from ptr
 
     while(*ptr != '\n' && ptr >= FileBuffer) 
     {
@@ -66,6 +72,19 @@ long ProcessManager::FindBaseAddr(const char *module)
     return strtol(BaseAddr, NULL, 16);
 
 }
+
+// Another useful way of getting the base address:
+
+
+// unsigned long module_addr(pid_t pid, char *name) {
+//   char cmd[200];
+//   sprintf(cmd, "cat /proc/%d/maps | grep %s -m1 | cut -d '-' -f1", pid, name);
+//   FILE *f = popen(cmd, "r");
+//   char line[20];
+//   fgets(line, 20, f);
+//   pclose(f);
+//   return strtoul(line, NULL, 16);
+// }
 
 bool ProcessManager::WriteProcessMemory(unsigned long address, void *buffer, uint size) 
 {
@@ -93,35 +112,20 @@ bool ProcessManager::ReadProcessMemory(unsigned long address, void *buffer, uint
 }
 
 
-unsigned long module_addr(pid_t pid, char *name) {
-  char cmd[200];
-  sprintf(cmd, "cat /proc/%d/maps | grep %s -m1 | cut -d '-' -f1", pid, name);
-  FILE *f = popen(cmd, "r");
-  char line[20];
-  fgets(line, 20, f);
-  pclose(f);
-  return strtoul(line, NULL, 16);
-}
-
-
 bool ProcessManager::GodMode(long staticOffset, std::vector<unsigned int> healthOffset)
 {
 
-    unsigned long currentAddr = staticOffset; //module_addr((pid_t) ProcessID, "ac_client") + 0x19ef40;
+    unsigned long currentAddr = staticOffset; 
     long buf;
     ReadProcessMemory(currentAddr, &buf, sizeof(buf));
     currentAddr = buf;
-    printf("%p\n", (void*)buf);
 
 
     for(int i = 0; i < healthOffset.size() - 1; i++)
     {
-        printf("Iterating\n");
         unsigned long nextAddr = currentAddr + healthOffset[i];
-        printf("%p\n", (void*)nextAddr);
         ReadProcessMemory(nextAddr, &buf, sizeof(buf));
         currentAddr = buf;
-        printf("%p\n", (void*)buf);
     }
 
     long healthAddr = currentAddr + healthOffset.back();
