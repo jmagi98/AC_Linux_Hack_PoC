@@ -107,7 +107,7 @@ unsigned long module_addr(pid_t pid, char *name) {
 bool ProcessManager::GodMode(long staticOffset, std::vector<unsigned int> healthOffset)
 {
 
-    unsigned long currentAddr = module_addr((pid_t) ProcessID, "ac_client") + 0x19ef40;
+    unsigned long currentAddr = staticOffset; //module_addr((pid_t) ProcessID, "ac_client") + 0x19ef40;
     long buf;
     ReadProcessMemory(currentAddr, &buf, sizeof(buf));
     currentAddr = buf;
@@ -125,7 +125,7 @@ bool ProcessManager::GodMode(long staticOffset, std::vector<unsigned int> health
     }
 
     long healthAddr = currentAddr + healthOffset.back();
-    long totalHealth = 9999;
+    long totalHealth = 9998;
     printf("WRITING HEALTH AT ADDR: ");
     printf("%p\n", (void*)healthAddr);
 
